@@ -4,7 +4,7 @@ Copy a selected receive connector and it's configuration and permissions to othe
 ##Description
 This script copies a receive connector from a source Exchange Server to a single target Exchange server or to all Exchange servers.
     
-Configured permissions can be copied as well.
+Configured permissions are copied as well, if required.
 
 ##Inputs
 ConnectorName  

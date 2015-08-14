@@ -7,7 +7,7 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.2, 2015-06-29
+    Version 1.3, 2015-08-14
 
     Please send ideas, comments and suggestions to support@granikos.eu 
 
@@ -15,20 +15,20 @@
     More information can be found at http://www.granikos.eu/en/scripts
 
     .DESCRIPTION 
-    This script copies a receive connector from a source Exchange Server to a single target
-    Exchange server or to all Exchange servers.
+    This script copies a receive connector from a source Exchange Server to a single target Exchange server or to all Exchange servers.
     
-    Configured permissions are copied as well 
+    Configured permissions are copied as well, if required
  
     .NOTES 
     Requirements 
     - Windows Server 2008 R2 SP1, Windows Server 2012 or Windows Server 2012 R2  
     
     Revision History 
-    -------------------------------------------------------------------------------- 
+    -------- ----------------------------------------------------------------------- 
     1.0      Initial community release 
     1.1      Domain Controller parameter added, permissions group copy added
     1.2      Move to FrontendTransport added, optional permission copy added, reset bindings added 
+    1.3      Update receive connector, if receive connector exists
 
     .PARAMETER ConnectorName  
     Name of the connector the new IP addresses should be added to  
@@ -100,6 +100,16 @@ $secondsToWait = 60
 
 ### FUNCTIONS -----------------------------
 
+function Request-Choice {
+    param([string]$Caption)
+    $choices =  [System.Management.Automation.Host.ChoiceDescription[]]@("&Yes","&No")
+    [int]$defaultChoice = 1
+
+    $choiceReturn = $Host.UI.PromptForChoice($Caption, "", $choices, $defaultChoice)
+
+    return $choiceReturn   
+}
+
 function CopyToServer {
     param(
         [string]$TargetServerName
@@ -111,7 +121,8 @@ function CopyToServer {
 
     if(($sourceRC -ne $null) -and ($targetRC -eq $null)){
 
-        Write-Host "Adding new receive connector $($ConnectorName) to $($TargetServerName)"
+        Write-Host
+        Write-Host "Working on $($TargetServerName) and receive connector $($ConnectorName)"
 
         # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
         $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ", " | Select-String -Pattern "Custom" -NotMatch
@@ -164,7 +175,9 @@ function CopyToServer {
         -EnableAuthGSSAPI $sourceRC.EnableAuthGSSAPI `
         -ExtendedProtectionPolicy $sourceRC.ExtendedProtectionPolicy `
         -SizeEnabled $sourceRC.SizeEnabled `
-        -TarpitInterval $sourceRC.TarpitInterval `        -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `        -Server $TargetServerName 
+        -TarpitInterval $sourceRC.TarpitInterval `
+        -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
+        -Server $TargetServerName 
 
         if($CopyPermissions) {
             # fetch non inherited permissons from source connector
@@ -183,17 +196,76 @@ function CopyToServer {
         }
     }
     else {
-        Write-Output "Receive connector is null or target connector already exists, nothing to do here."
+        Write-Output "Receive connector is null or target connector already exists."
+
+        
+        if((Request-Choice -Caption "Do you want to UPDATE the receive connector $($ConnectorName) on server $($TargetServerName)?") -eq 0) {
+            Write-Host "Updating server $($TargetServerName)"
+
+            Set-ReceiveConnector "$($TargetServerName)\$($sourceRC.Name)" `
+                -TransportRole $sourceRC.TransportRole `
+                -RemoteIPRanges $sourceRC.RemoteIPRanges `
+                -Bindings $sourceRC.Bindings `
+                -Banner $sourceRC.Banner `
+                -ChunkingEnabled $sourceRC.ChunkingEnabled `
+                -DefaultDomain $sourceRC.DefaultDomain `
+                -DeliveryStatusNotificationEnabled $sourceRC.DeliveryStatusNotificationEnabled `
+                -EightBitMimeEnabled $sourceRC.EightBitMimeEnabled `
+                -DomainSecureEnabled $sourceRC.DomainSecureEnabled `
+                -LongAddressesEnabled $sourceRC.LongAddressesEnabled `
+                -OrarEnabled $sourceRC.OrarEnabled `
+                -Comment $sourceRC.Comment `
+                -Enabled $sourceRC.Enabled `
+                -ConnectionTimeout $sourceRC.ConnectionTimeout `
+                -ConnectionInactivityTimeout $sourceRC.ConnectionInactivityTimeout `
+                -MessageRateLimit $sourceRC.MessageRateLimit `
+                -MaxInboundConnection $sourceRC.MaxInboundConnection `
+                -MaxInboundConnectionPerSource $sourceRC.MaxInboundConnectionPerSource `
+                -MaxInboundConnectionPercentagePerSource $sourceRC.MaxInboundConnectionPercentagePerSource `
+                -MaxHeaderSize $sourceRC.MaxHeaderSize `
+                -MaxHopCount $sourceRC.MaxHopCount `
+                -MaxLocalHopCount $sourceRC.MaxLocalHopCount `
+                -MaxLogonFailures $sourceRC.MaxLogonFailures `
+                -MaxMessageSize $sourceRC.MaxMessageSize `
+                -MaxProtocolErrors $sourceRC.MaxProtocolErrors `
+                -MaxRecipientsPerMessage $sourceRC.MaxRecipientsPerMessage `
+                -PermissionGroups $sourceRC.PermissionGroups `
+                -PipeliningEnabled $sourceRC.PipeLiningEnabled `
+                -ProtocolLoggingLevel $sourceRC.ProtocolLoggingLevel `
+                -RequireEHLODomain $sourceRC.RequireEHLODomain `
+                -RequireTLS $sourceRC.RequireTLS `
+                -EnableAuthGSSAPI $sourceRC.EnableAuthGSSAPI `
+                -ExtendedProtectionPolicy $sourceRC.ExtendedProtectionPolicy `
+                -SizeEnabled $sourceRC.SizeEnabled `
+                -TarpitInterval $sourceRC.TarpitInterval `
+                -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled 
+
+            if($CopyPermissions) {
+                # fetch non inherited permissons from source connector
+                $sourcePermissions = Get-ReceiveConnector -Identity $sourceRC | Get-ADPermission | where {$_.IsInherited -eq $false}
+
+                # we wait some time for domain controller to get stuff done
+                Write-Host "Wait $($secondsToWait) seconds for domain controller to update"
+                Start-Sleep -Seconds $secondsToWait
+
+                Write-Verbose "Adding AD permissions"
+
+                # set access rights on target connector
+                $sourcePermissions | foreach {
+                Get-ReceiveConnector "$($TargetServerName)\$($sourceRC.Name)" -DomainController $DomainController | Add-ADPermission -DomainController $DomainController -User $_.User -Deny:$_.Deny -AccessRights $_.AccessRights -ExtendedRights $_.ExtendedRights | Out-Null
+                }
+            }
+        }
     }
 }
 
 function CopyToAllServers {
     Write-Verbose "Copy receive connector to all other Exchange 2013 servers"
 
-    $frontendServers = Get-ExchangeServer | ?{($_.AdminDisplayVersion.Major -eq 15) -and (([string]$_.ServerRole).Contains("ClientAccess")) -and ($_.Name -ne $SourceServer)}
+    $frontendServers = Get-ExchangeServer | ?{($_.AdminDisplayVersion.Major -eq 15) -and (([string]$_.ServerRole).Contains("ClientAccess")) -and ($_.Name -ne $SourceServer)} | Sort-Object Name
     
     foreach($server in $frontendServers){
-        Write-Output "Adding to server: $server"
+        Write-Output "Working on server: $server"
         CopyToServer -TargetServerName $server
     }
 
