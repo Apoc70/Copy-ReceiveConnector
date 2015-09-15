@@ -7,7 +7,7 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.3, 2015-08-14
+    Version 1.4, 2015-09-15
 
     Please send ideas, comments and suggestions to support@granikos.eu 
 
@@ -29,6 +29,7 @@
     1.1      Domain Controller parameter added, permissions group copy added
     1.2      Move to FrontendTransport added, optional permission copy added, reset bindings added 
     1.3      Update receive connector, if receive connector exists
+    1.4      Fix to handle connector updates properly
 
     .PARAMETER ConnectorName  
     Name of the connector the new IP addresses should be added to  
@@ -126,8 +127,11 @@ function CopyToServer {
 
         # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
         $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ", " | Select-String -Pattern "Custom" -NotMatch
-        $temp = "$($tempPermissionGroups)"
-        $sourceRC.PermissionGroups = $temp.Replace(" ", ", ")
+        $temp = ("$($tempPermissionGroups)").Replace(" ", ", ").Replace(" ","")
+
+        if($temp -ne "") {
+            $sourceRC.PermissionGroups = $temp
+        }
 
         if($MoveToFrontend) {
             # Move receive connector to FrontEnd Transpport
@@ -175,9 +179,8 @@ function CopyToServer {
         -EnableAuthGSSAPI $sourceRC.EnableAuthGSSAPI `
         -ExtendedProtectionPolicy $sourceRC.ExtendedProtectionPolicy `
         -SizeEnabled $sourceRC.SizeEnabled `
-        -TarpitInterval $sourceRC.TarpitInterval `
-        -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
-        -Server $TargetServerName 
+        -TarpitInterval $sourceRC.TarpitInterval `        -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `        -Server $TargetServerName `
+        -AuthMechanism $sourceRC.AuthMechanism
 
         if($CopyPermissions) {
             # fetch non inherited permissons from source connector
@@ -195,17 +198,22 @@ function CopyToServer {
             }
         }
     }
-    else {
-        Write-Output "Receive connector is null or target connector already exists."
-
+    elseif($sourceRC -ne $null) {
+        Write-Output "Target connector already exists."
         
         if((Request-Choice -Caption "Do you want to UPDATE the receive connector $($ConnectorName) on server $($TargetServerName)?") -eq 0) {
             Write-Host "Updating server $($TargetServerName)"
 
-            Set-ReceiveConnector "$($TargetServerName)\$($sourceRC.Name)" `
-                -TransportRole $sourceRC.TransportRole `
+            # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
+            $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ", " | Select-String -Pattern "Custom" -NotMatch
+            $temp = ("$($tempPermissionGroups)").Replace(" ", ", ").Replace(" ","")
+
+            if($temp -ne "") {
+                $sourceRC.PermissionGroups = $temp
+            }
+
+            Get-ReceiveConnector "$($TargetServerName)\$($sourceRC.Name)" | Set-ReceiveConnector `
                 -RemoteIPRanges $sourceRC.RemoteIPRanges `
-                -Bindings $sourceRC.Bindings `
                 -Banner $sourceRC.Banner `
                 -ChunkingEnabled $sourceRC.ChunkingEnabled `
                 -DefaultDomain $sourceRC.DefaultDomain `
@@ -237,8 +245,10 @@ function CopyToServer {
                 -EnableAuthGSSAPI $sourceRC.EnableAuthGSSAPI `
                 -ExtendedProtectionPolicy $sourceRC.ExtendedProtectionPolicy `
                 -SizeEnabled $sourceRC.SizeEnabled `
-                -TarpitInterval $sourceRC.TarpitInterval `
-                -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled 
+                -TarpitInterval $sourceRC.TarpitInterval `                -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
+                -AuthMechanism $sourceRC.AuthMechanism 
+#                -Bindings $targetRC.Bindings `
+#                -TransportRole $sourceRC.TransportRole `
 
             if($CopyPermissions) {
                 # fetch non inherited permissons from source connector
@@ -256,6 +266,10 @@ function CopyToServer {
                 }
             }
         }
+    }
+    else {
+        Write-Host "There seems to be an issue with the source connector information provided."
+        Write-Host "Source connector $($SourceServer)\$($ConnectorName) cannot be accessed or does not exist!"
     }
 }
 
