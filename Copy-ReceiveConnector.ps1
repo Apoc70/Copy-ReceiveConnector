@@ -7,12 +7,12 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.4, 2015-09-15
+    Version 1.41, 2016-07-26
 
     Please send ideas, comments and suggestions to support@granikos.eu 
 
     .LINK 
-    More information can be found at http://www.granikos.eu/en/scripts
+    More information can be found at http://scripts.granikos.eu
 
     .DESCRIPTION 
     This script copies a receive connector from a source Exchange Server to a single target Exchange server or to all Exchange servers.
@@ -21,7 +21,9 @@
  
     .NOTES 
     Requirements 
-    - Windows Server 2008 R2 SP1, Windows Server 2012 or Windows Server 2012 R2  
+    - Windows Server 2008 R2 SP1, Windows Server 2012 or Windows Server 2012 R2 
+    - Exchange Server 2007/2010 
+    - Exchange Server 2013/2016 
     
     Revision History 
     -------- ----------------------------------------------------------------------- 
@@ -30,6 +32,7 @@
     1.2      Move to FrontendTransport added, optional permission copy added, reset bindings added 
     1.3      Update receive connector, if receive connector exists
     1.4      Fix to handle connector updates properly
+    1.41     Minor fixes and update for Exchange 2016
 
     .PARAMETER ConnectorName  
     Name of the connector the new IP addresses should be added to  
@@ -59,15 +62,15 @@
     View entire Active Directory forest
 
     .EXAMPLE 
-    Copy Exchange 2013 receive connector nikos-one-RC2 from server MBX01 to server MBX2
+    Copy Exchange 2013/2016 receive connector nikos-one-RC2 from server MBX01 to server MBX2
     .\Copy-ReceiveConnector.ps1 -SourceServer MBX01 -ConnectorName nikos-one-RC2 -TargetServer MBX2 -DomainController MYDC1.mcsmemail.de
 
     .EXAMPLE 
-    Copy Exchange 2013 receive connector nikos-one-RC2 from server MBX01 to all other Exchange 2013 servers 
+    Copy Exchange 2013/2016 receive connector nikos-one-RC2 from server MBX01 to all other Exchange 2013 servers 
     .\Copy-ReceiveConnector.ps1 -SourceServer MBX01 -ConnectorName nikos-one-RC1 -CopyToAllOther -DomainController MYDC1.mcsmemail.de
 
     .EXAMPLE 
-    Copy Exchange 2013 receive connector "nikos-two relay" from Exchange 2007 server MBX2007 to Exchange 2013 server MBX01 and reset network bindings 
+    Copy Exchange 2013/2016 receive connector "nikos-two relay" from Exchange 2007 server MBX2007 to Exchange 2013 server MBX01 and reset network bindings 
     .\Copy-ReceiveConnector.ps1 -SourceServer MBX2007 -ConnectorName "nikos-two relay" -TargetServer MBX01 -MoveToFrontend -ResetBindings -DomainController MYDC1.mcsmemail.de 
 #> 
 
@@ -77,14 +80,14 @@ param(
 	[parameter(Mandatory=$true,HelpMessage='Name of the receive connector to copy')]
 		[string] $ConnectorName,
 	[parameter(Mandatory=$false,HelpMessage='Target Exchange server to copy the selected receive connector to')]
-		[string] $TargetServer = "",
+		[string] $TargetServer = '',
 	[parameter(Mandatory=$true,HelpMessage='Domain Controller name')]
-		[string] $DomainController = "",
+		[string] $DomainController = '',
     [parameter(Mandatory=$false,HelpMessage='Copy to all other Exchange servers')]
         [switch] $CopyToAllOther,
     [parameter(Mandatory=$false,HelpMessage='Copy non inherited source receive AD permissions to target receive connector')]
         [switch] $CopyPermissions,
-    [parameter(Mandatory=$false,HelpMessage='Move receive connector to FrontEnd transport (i.e. Exchange 2007 -> Exchange 2013)')]
+    [parameter(Mandatory=$false,HelpMessage='Move receive connector to FrontEnd transport (i.e. Exchange 2007 -> Exchange 2013/2016)')]
         [switch] $MoveToFrontend,
     [parameter(Mandatory=$false,HelpMessage='Reset network bindings to listen on all adapters on port 25')]
         [switch] $ResetBindings,
@@ -103,22 +106,22 @@ $secondsToWait = 60
 
 function Request-Choice {
     param([string]$Caption)
-    $choices =  [System.Management.Automation.Host.ChoiceDescription[]]@("&Yes","&No")
+    $choices =  [System.Management.Automation.Host.ChoiceDescription[]]@('&Yes','&No')
     [int]$defaultChoice = 1
 
-    $choiceReturn = $Host.UI.PromptForChoice($Caption, "", $choices, $defaultChoice)
+    $choiceReturn = $Host.UI.PromptForChoice($Caption, '', $choices, $defaultChoice)
 
     return $choiceReturn   
 }
 
-function CopyToServer {
+function Copy-ToServer {
     param(
         [string]$TargetServerName
     )
 
-    $sourceRC = Get-ReceiveConnector -Server $SourceServer | ?{$_.Name -eq $ConnectorName} -ErrorAction SilentlyContinue
+    $sourceRC = Get-ReceiveConnector -Server $SourceServer | Where-Object{$_.Name -eq $ConnectorName} -ErrorAction SilentlyContinue
 
-    $targetRC = Get-ReceiveConnector -Server $TargetServerName | ?{$_.Name -eq $ConnectorName} -ErrorAction SilentlyContinue
+    $targetRC = Get-ReceiveConnector -Server $TargetServerName | Where-Object{$_.Name -eq $ConnectorName} -ErrorAction SilentlyContinue
 
     if(($sourceRC -ne $null) -and ($targetRC -eq $null)){
 
@@ -126,21 +129,21 @@ function CopyToServer {
         Write-Host "Working on $($TargetServerName) and receive connector $($ConnectorName)"
 
         # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
-        $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ", " | Select-String -Pattern "Custom" -NotMatch
-        $temp = ("$($tempPermissionGroups)").Replace(" ", ", ").Replace(" ","")
+        $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ', ' | Select-String -Pattern 'Custom' -NotMatch
+        $temp = ("$($tempPermissionGroups)").Replace(' ', ', ').Replace(' ','')
 
-        if($temp -ne "") {
+        if($temp -ne '') {
             $sourceRC.PermissionGroups = $temp
         }
 
         if($MoveToFrontend) {
             # Move receive connector to FrontEnd Transpport
-            $sourceRC.TransportRole = "FrontendTransport"
+            $sourceRC.TransportRole = 'FrontendTransport'
         }
 
         if($ResetBindings) {
             # Reset network bindungs to listen on all adapters using port 25
-            $sourceRC.Bindings = "0.0.0.0:25"
+            $sourceRC.Bindings = '0.0.0.0:25'
         }
 
         # create new Receive Connector
@@ -184,13 +187,13 @@ function CopyToServer {
 
         if($CopyPermissions) {
             # fetch non inherited permissons from source connector
-            $sourcePermissions = Get-ReceiveConnector -Identity $sourceRC | Get-ADPermission | where {$_.IsInherited -eq $false}
+            $sourcePermissions = Get-ReceiveConnector -Identity $sourceRC | Get-ADPermission | Where-Object {$_.IsInherited -eq $false}
 
             # we wait some time for domain controller to get stuff done
             Write-Host "Wait $($secondsToWait) seconds for domain controller to update"
             Start-Sleep -Seconds $secondsToWait
 
-            Write-Verbose "Adding AD permissions"
+            Write-Verbose 'Adding AD permissions'
 
             # set access rights on target connector
             $sourcePermissions | foreach {
@@ -199,16 +202,16 @@ function CopyToServer {
         }
     }
     elseif($sourceRC -ne $null) {
-        Write-Output "Target connector already exists."
+        Write-Output 'Target connector already exists.'
         
         if((Request-Choice -Caption "Do you want to UPDATE the receive connector $($ConnectorName) on server $($TargetServerName)?") -eq 0) {
             Write-Host "Updating server $($TargetServerName)"
 
             # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
-            $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ", " | Select-String -Pattern "Custom" -NotMatch
-            $temp = ("$($tempPermissionGroups)").Replace(" ", ", ").Replace(" ","")
+            $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ', ' | Select-String -Pattern 'Custom' -NotMatch
+            $temp = ("$($tempPermissionGroups)").Replace(' ', ', ').Replace(' ','')
 
-            if($temp -ne "") {
+            if($temp -ne '') {
                 $sourceRC.PermissionGroups = $temp
             }
 
@@ -252,13 +255,13 @@ function CopyToServer {
 
             if($CopyPermissions) {
                 # fetch non inherited permissons from source connector
-                $sourcePermissions = Get-ReceiveConnector -Identity $sourceRC | Get-ADPermission | where {$_.IsInherited -eq $false}
+                $sourcePermissions = Get-ReceiveConnector -Identity $sourceRC | Get-ADPermission | Where-Object {$_.IsInherited -eq $false}
 
                 # we wait some time for domain controller to get stuff done
                 Write-Host "Wait $($secondsToWait) seconds for domain controller to update"
                 Start-Sleep -Seconds $secondsToWait
 
-                Write-Verbose "Adding AD permissions"
+                Write-Verbose 'Adding AD permissions'
 
                 # set access rights on target connector
                 $sourcePermissions | foreach {
@@ -268,22 +271,22 @@ function CopyToServer {
         }
     }
     else {
-        Write-Host "There seems to be an issue with the source connector information provided."
+        Write-Host 'There seems to be an issue with the source connector information provided.'
         Write-Host "Source connector $($SourceServer)\$($ConnectorName) cannot be accessed or does not exist!"
     }
 }
 
-function CopyToAllServers {
-    Write-Verbose "Copy receive connector to all other Exchange 2013 servers"
+function Copy-ToAllServers {
+    Write-Verbose 'Copy receive connector to all other Exchange 2013 servers'
 
-    $frontendServers = Get-ExchangeServer | ?{($_.AdminDisplayVersion.Major -eq 15) -and (([string]$_.ServerRole).Contains("ClientAccess")) -and ($_.Name -ne $SourceServer)} | Sort-Object Name
+    $frontendServers = Get-ExchangeServer | Where-Object{($_.AdminDisplayVersion.Major -eq 15) -and (([string]$_.ServerRole).Contains('ClientAccess')) -and ($_.Name -ne $SourceServer)} | Sort-Object Name
     
     foreach($server in $frontendServers){
         Write-Output "Working on server: $server"
-        CopyToServer -TargetServerName $server
+        Copy-ToServer -TargetServerName $server
     }
 
-    Write-Verbose "Copying to all Exchange servers done"
+    Write-Verbose 'Copying to all Exchange servers done'
 }
 
 ### MAIN ----------------------------------
@@ -293,16 +296,16 @@ if($ViewEntireForest) {
     Set-ADServerSettings -ViewEntireForest $true
 }
 
-if((-not $CopyToAllOther) -and ($TargetServer -eq "")){
-    Write-Output "You need to either specific a dedicated target server using the -TargetServer "
-    Write-Output "attribute or select the -CopyToAllOther switch"
+if((-not $CopyToAllOther) -and ($TargetServer -eq '')){
+    Write-Output 'You need to either specific a dedicated target server using the -TargetServer '
+    Write-Output 'attribute or select the -CopyToAllOther switch'
     break
 }
-elseif($TargetServer -ne ""){
+elseif($TargetServer -ne ''){
     # Copy to a single Exchange server
-    CopyToServer -TargetServerName $TargetServer  
+    Copy-ToServer -TargetServerName $TargetServer  
 }
 elseif($CopyToAllOther){
-    # Copy to all other Exchange 2013 servers
-    CopyToAllServers
+    # Copy to all other Exchange 2013/2016 servers
+    Copy-ToAllServers
 }
