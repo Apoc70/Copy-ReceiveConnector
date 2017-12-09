@@ -7,7 +7,7 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.5, 2016-11-11
+    Version 1.5, 2017-11-11
 
     Please send ideas, comments and suggestions to support@granikos.eu 
 
@@ -184,7 +184,9 @@ function Copy-ToServer {
       -EnableAuthGSSAPI $sourceRC.EnableAuthGSSAPI `
       -ExtendedProtectionPolicy $sourceRC.ExtendedProtectionPolicy `
       -SizeEnabled $sourceRC.SizeEnabled `
-      -TarpitInterval $sourceRC.TarpitInterval `      -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `      -Server $TargetServerName `
+      -TarpitInterval $sourceRC.TarpitInterval `
+      -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
+      -Server $TargetServerName `
       -AuthMechanism $sourceRC.AuthMechanism `
       -Fqdn $sourceRC.Fqdn
 
@@ -252,7 +254,8 @@ function Copy-ToServer {
         -EnableAuthGSSAPI $sourceRC.EnableAuthGSSAPI `
         -ExtendedProtectionPolicy $sourceRC.ExtendedProtectionPolicy `
         -SizeEnabled $sourceRC.SizeEnabled `
-        -TarpitInterval $sourceRC.TarpitInterval `        -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
+        -TarpitInterval $sourceRC.TarpitInterval `
+        -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
         -AuthMechanism $sourceRC.AuthMechanism `
         -Fqdn $sourceRC.Fqdn
         # -Bindings $targetRC.Bindings `
