@@ -7,7 +7,7 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.5, 2017-11-11
+    Version 1.6, 2018-03-26
 
     Please send ideas, comments and suggestions to support@granikos.eu 
 
@@ -33,7 +33,8 @@
     1.3      Update receive connector, if receive connector exists
     1.4      Fix to handle connector updates properly
     1.41     Minor fixes and update for Exchange 2016
-    1.5      Issued #2 fixed
+    1.5      Issue #2 fixed
+    1.6      Issue #3 fixed
 
     .PARAMETER ConnectorName  
     Name of the connector the new IP addresses should be added to  
@@ -289,9 +290,10 @@ function Copy-ToServer {
 }
 
 function Copy-ToAllServers {
-  Write-Verbose 'Copy receive connector to all other Exchange 2013 servers'
+  Write-Verbose 'Copy receive connector to all other Exchange 2013+ servers'
 
-  $frontendServers = Get-ExchangeServer | Where-Object{($_.AdminDisplayVersion.Major -eq 15) -and (([string]$_.ServerRole).Contains('ClientAccess')) -and ($_.Name -ne $SourceServer)} | Sort-Object Name
+  # Quick fix for issue #3, assuming that you've deployed Exchange 2013 multi-role
+  $frontendServers = Get-ExchangeServer | Where-Object{($_.AdminDisplayVersion.Major -eq 15) -and (([string]$_.ServerRole).Contains('Mailbox')) -and ($_.Name -ne $SourceServer)} | Sort-Object Name
     
   foreach($server in $frontendServers){
     Write-Output -InputObject ('Working on server: {0}' -f $server)
