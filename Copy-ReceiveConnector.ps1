@@ -7,7 +7,7 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.6, 2018-03-26
+    Version 1.6, 2019-10-08
 
     Please send ideas, comments and suggestions to support@granikos.eu 
 
@@ -21,9 +21,10 @@
  
     .NOTES 
     Requirements 
-    - Windows Server 2008 R2 SP1, Windows Server 2012 or Windows Server 2012 R2 
+    - Windows Server 2008 R2 SP1, Windows Server 2012, Windows Server 2012 R2, or Windows Server 2019
     - Exchange Server 2007/2010 
     - Exchange Server 2013/2016 
+    - Exchange Server 2019
     
     Revision History 
     -------- ----------------------------------------------------------------------- 
@@ -35,6 +36,7 @@
     1.41     Minor fixes and update for Exchange 2016
     1.5      Issue #2 fixed
     1.6      Issue #3 fixed
+    1.6.1    Added -FqdnOverride and -FqdnAuthFix
 
     .PARAMETER ConnectorName  
     Name of the connector the new IP addresses should be added to  
@@ -62,6 +64,13 @@
 
     .PARAMETER ViewEntireForest
     View entire Active Directory forest
+    
+    .PARAMETER FqdnOverride
+    Overrides the old FQDN value.
+    
+    .PARAMETER FqdnAuthFix
+    If the AuthMechanism has the flag ExchangeServer, this replaces $FqdnOverride with $TargetServer.
+    
 
     .EXAMPLE 
     Copy Exchange 2013/2016 receive connector nikos-one-RC2 from server MBX01 to server MBX2
@@ -88,7 +97,9 @@ param(
   [switch] $CopyPermissions,
   [switch] $MoveToFrontend,
   [switch] $ResetBindings,
-  [switch] $ViewEntireForest
+  [switch] $ViewEntireForest,
+  [string] $FqdnOverride,
+  [switch] $FqdnAuthFix
 )
 
 # Set-StrictMode -Version Latest
@@ -119,6 +130,7 @@ function Copy-ToServer {
   param(
     [string]$TargetServerName = ''
   )
+
     
   if ($TargetServerName -ne '') { 
 
@@ -147,6 +159,10 @@ function Copy-ToServer {
       if($ResetBindings) {
         # Reset network bindungs to listen on all adapters using port 25
         $sourceRC.Bindings = '0.0.0.0:25'
+      }
+
+      if($FqdnAuthFix -and $sourceRC.AuthMechanism.HasFlag([Microsoft.Exchange.Data.Directory.SystemConfiguration.AuthMechanisms]::ExchangeServer)) {
+        $FqdnOverride = $TargetServerName
       }
 
       # create new Receive Connector
@@ -189,7 +205,7 @@ function Copy-ToServer {
       -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
       -Server $TargetServerName `
       -AuthMechanism $sourceRC.AuthMechanism `
-      -Fqdn $sourceRC.Fqdn
+      -Fqdn @($sourceRC.Fqdn, $FqdnOverride)[!!($FqdnOverride -ne $null)]
 
       if($CopyPermissions) {
         # fetch non inherited permissons from source connector
@@ -220,6 +236,10 @@ function Copy-ToServer {
 
         if($temp -ne '') {
           $sourceRC.PermissionGroups = $temp
+        }
+
+        if($FqdnAuthFix -and $sourceRC.AuthMechanism.HasFlag([Microsoft.Exchange.Data.Directory.SystemConfiguration.AuthMechanisms]::ExchangeServer)) {
+          $FqdnOverride = $TargetServerName
         }
 
         Get-ReceiveConnector "$($TargetServerName)\$($sourceRC.Name)" | Set-ReceiveConnector `
@@ -258,7 +278,7 @@ function Copy-ToServer {
         -TarpitInterval $sourceRC.TarpitInterval `
         -EnhancedStatusCodesEnabled  $sourceRC.EnhancedStatusCodesEnabled `
         -AuthMechanism $sourceRC.AuthMechanism `
-        -Fqdn $sourceRC.Fqdn
+        -Fqdn @($sourceRC.Fqdn, $FqdnOverride)[!!($FqdnOverride -ne $null)]
         # -Bindings $targetRC.Bindings `
         # -TransportRole $sourceRC.TransportRole `
 
