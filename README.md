@@ -8,6 +8,11 @@ This script copies a receive connector from a source Exchange Server to a single
 
 Configured permissions are copied as well, if required.
 
+## Requirements
+
+- Windows Server 2016, Windows Server 2019
+- Exchange Server 2013/2016/2019 Management Shell
+
 ## Parameters
 
 ### ConnectorName
@@ -42,6 +47,10 @@ Change source connector transport role to FrontendTransport. This is required wh
 
 Do not copy bindings but reset receive connector network bindings to 0.0.0.0:25
 
+### UpdateExistingConnector
+
+Update an existing receive connector without confirmation prompt.
+
 ### ViewEntireForest
 
 View entire Active Directory forest
@@ -66,6 +75,12 @@ Copy Exchange 2013 receive connector nikos-one-RC2 from server MBX01 to all othe
 
 Copy Exchange 2013 receive connector "nikos-two relay" from Exchange 2007 server MBX2007 to Exchange 2013+ server MBX01 and reset network binding
 
+``` PowerShell
+.\Copy-ReceiveConnector.ps1 -SourceServer MBX01 -ConnectorName MYRECEIVECONNECTOR -CopyToAllOther -DomainController MYDC1.mcsmemail.de -UpdateExitingConnector
+```
+
+Copy Exchange 2013/2016/2019 receive connector MYRECEIVECONNECTOR from server MBX01 to all other Exchange 2013+ servers without confirmation prompt if connectors already exists
+
 ## Note
 
 THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE
@@ -75,7 +90,7 @@ RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER.
 
 Download and vote at TechNet Gallery
 
-* [https://gallery.technet.microsoft.com/Copy-a-receive-connector-b20b9bef](https://gallery.technet.microsoft.com/Copy-a-receive-connector-b20b9bef)
+- [https://gallery.technet.microsoft.com/Copy-a-receive-connector-b20b9bef](https://gallery.technet.microsoft.com/Copy-a-receive-connector-b20b9bef)
 
 ## Credits
 
@@ -83,13 +98,15 @@ Written by: Thomas Stensitzki
 
 Stay connected:
 
-* My Blog: [http://justcantgetenough.granikos.eu](http://justcantgetenough.granikos.eu)
-* Twitter: [https://twitter.com/stensitzki](https://twitter.com/stensitzki)
-* LinkedIn: [http://de.linkedin.com/in/thomasstensitzki](http://de.linkedin.com/in/thomasstensitzki)
-* Github: [https://github.com/Apoc70](https://github.com/Apoc70)
+- My Blog: [http://justcantgetenough.granikos.eu](http://justcantgetenough.granikos.eu)
+- Twitter: [https://twitter.com/stensitzki](https://twitter.com/stensitzki)
+- LinkedIn: [http://de.linkedin.com/in/thomasstensitzki](http://de.linkedin.com/in/thomasstensitzki)
+- Github: [https://github.com/Apoc70](https://github.com/Apoc70)
+- MVP Blog: [https://blogs.msmvps.com/thomastechtalk/](https://blogs.msmvps.com/thomastechtalk/)
+- Tech Talk YouTube Channel (DE): [http://techtalk.granikos.eu](http://techtalk.granikos.eu)
 
-For more Office 365, Cloud Security, and Exchange Server stuff checkout services provided by Granikos
+For more Office 365, Cloud Security, and Exchange Server stuff checkout services provided by Granikos.
 
-* Blog: [http://blog.granikos.eu](http://blog.granikos.eu)
-* Website: [https://www.granikos.eu/en/](https://www.granikos.eu/en/)
-* Twitter: [https://twitter.com/granikos_de](https://twitter.com/granikos_de)
+- Blog: [http://blog.granikos.eu](http://blog.granikos.eu)
+- Website: [https://www.granikos.eu/en/](https://www.granikos.eu/en/)
+- Twitter: [https://twitter.com/granikos_de](https://twitter.com/granikos_de)
