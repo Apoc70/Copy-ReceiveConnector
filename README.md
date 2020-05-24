@@ -86,17 +86,11 @@ Copy Exchange 2013/2016/2019 receive connector MYRECEIVECONNECTOR from server MB
 THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE
 RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER.
 
-## TechNet Gallery
-
-Download and vote at TechNet Gallery
-
-- [https://gallery.technet.microsoft.com/Copy-a-receive-connector-b20b9bef](https://gallery.technet.microsoft.com/Copy-a-receive-connector-b20b9bef)
-
 ## Credits
 
 Written by: Thomas Stensitzki
 
-Stay connected:
+## Stay connected
 
 - My Blog: [http://justcantgetenough.granikos.eu](http://justcantgetenough.granikos.eu)
 - Twitter: [https://twitter.com/stensitzki](https://twitter.com/stensitzki)
@@ -105,7 +99,7 @@ Stay connected:
 - MVP Blog: [https://blogs.msmvps.com/thomastechtalk/](https://blogs.msmvps.com/thomastechtalk/)
 - Tech Talk YouTube Channel (DE): [http://techtalk.granikos.eu](http://techtalk.granikos.eu)
 
-For more Office 365, Cloud Security, and Exchange Server stuff checkout services provided by Granikos.
+For more Office 365, Cloud Security, and Exchange Server stuff checkout services provided by Granikos
 
 - Blog: [http://blog.granikos.eu](http://blog.granikos.eu)
 - Website: [https://www.granikos.eu/en/](https://www.granikos.eu/en/)
