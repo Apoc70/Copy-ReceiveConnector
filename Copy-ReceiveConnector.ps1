@@ -7,7 +7,7 @@
     THIS CODE IS MADE AVAILABLE AS IS, WITHOUT WARRANTY OF ANY KIND. THE ENTIRE  
     RISK OF THE USE OR THE RESULTS FROM THE USE OF THIS CODE REMAINS WITH THE USER. 
 
-    Version 1.7, 2020-03-15
+    Version 1.71, 2022-06-24
 
     Please submit ideas, comments, and suggestions using GitHub. 
 
@@ -38,6 +38,8 @@
     1.6      Issue #3 fixed
     1.6.1    Minor fixes and tested with Exchange Server 2019 
     1.7      UpdateExistingConnector added (issue #6), tested with Exchange Server 2019
+    1.71     Added update of Bindings when updating connector
+             Added replacement of "Server Name" in Connector Name with new "Server Name"
 
     .PARAMETER ConnectorName  
     Name of the connector the new IP addresses should be added to  
@@ -143,11 +145,13 @@ function Copy-ToServer {
 
     $sourceRC = Get-ReceiveConnector -Server $SourceServer -DomainController $DomainController  | Where-Object{$_.Name -eq $ConnectorName} -ErrorAction SilentlyContinue
 
-    $targetRC = Get-ReceiveConnector -Server $TargetServerName -DomainController $DomainController | Where-Object{$_.Name -eq $ConnectorName} -ErrorAction SilentlyContinue
+    $TargetConnectorName= $sourceRC.Name -replace (' {0}' -f $SourceServer), (' {0}' -f $TargetServerName)
+
+    $targetRC = Get-ReceiveConnector -Server $TargetServerName -DomainController $DomainController | Where-Object{$_.Name -eq $TargetConnectorName} -ErrorAction SilentlyContinue
 
     if(($sourceRC -ne $null) -and ($targetRC -eq $null)){
 
-      Write-Host ('Working on [{0}] and receive connector [{1}]' -f $TargetServerName.ToUpper(), $ConnectorName)
+      Write-Host ('Working on [{0}] and receive connector [{1}]' -f $TargetServerName.ToUpper(), $TargetConnectorName)
 
       # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
       $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ', ' | Select-String -Pattern 'Custom' -NotMatch
@@ -194,7 +198,7 @@ function Copy-ToServer {
       }
 
       # create new Receive Connector
-      New-ReceiveConnector -Name $sourceRC.Name `
+      New-ReceiveConnector -Name $TargetConnectorName `
       -TransportRole $sourceRC.TransportRole `
       -RemoteIPRanges $sourceRC.RemoteIPRanges `
       -Bindings $sourceRC.Bindings `
@@ -241,7 +245,7 @@ function Copy-ToServer {
         Write-Verbose -Message ('Wait {0} seconds for domain controller to update' -f $secondsToWait)
         Start-Sleep -Seconds $secondsToWait
 
-        $newConnector = Get-ReceiveConnector -Identity ('{0}\{1}' -f $TargetServerName, $sourceRC.Name) -DomainController $DomainController
+        $newConnector = Get-ReceiveConnector -Identity ('{0}\{1}' -f $TargetServerName, $TargetConnectorName) -DomainController $DomainController
 
         Write-Verbose -Message ('Updating PermissionGroups for {0}\{1}' -f $TargetServerName, $sourceRC.Name)
 
@@ -260,7 +264,7 @@ function Copy-ToServer {
         Write-Verbose -Message 'Adding AD permissions'
 
         # set access rights on target connector
-        $null = Get-ReceiveConnector -Identity ('{0}\{1}' -f $TargetServerName, $sourceRC.Name) -DomainController $DomainController | Add-ADPermission -DomainController $DomainController -User $_.User -Deny:$_.Deny -AccessRights $_.AccessRights -ExtendedRights $_.ExtendedRights -ErrorAction SilentlyContinue
+        $null = Get-ReceiveConnector -Identity ('{0}\{1}' -f $TargetServerName, $TargetConnectorName) -DomainController $DomainController | Add-ADPermission -DomainController $DomainController -User $_.User -Deny:$_.Deny -AccessRights $_.AccessRights -ExtendedRights $_.ExtendedRights -ErrorAction SilentlyContinue
         
         Write-Verbose -Message 'Adding AD permissions finished'
       }
@@ -270,9 +274,9 @@ function Copy-ToServer {
       # target connector already exists
       Write-Output 'Target connector already exists.'
         
-      if(($UpdateExitingConnector) -or (Request-Choice -Caption ('Do you want to UPDATE the receive connector {0} on server {1}?' -f $ConnectorName, $TargetServerName)) -eq 0) {
+      if(($UpdateExitingConnector) -or (Request-Choice -Caption ('Do you want to UPDATE the receive connector {0} on server {1}?' -f $TargetConnectorName, $TargetServerName)) -eq 0) {
       
-        Write-Host ('Updating connector on server {0}' -f $TargetServerName)
+        Write-Host ('Updating connector {1} on server {0}' -f $TargetServerName, $TargetConnectorName)
 
         # clear permission groups for Exchange Server 2013 (thanks to Jeffery Land, https://jefferyland.wordpress.com)
         $tempPermissionGroups = @($sourceRC.PermissionGroups) -split ', ' | Select-String -Pattern 'Custom' -NotMatch
@@ -291,7 +295,8 @@ function Copy-ToServer {
           $TargetFqdn = ('{0}.{1}' -f $TargetServerName,(Get-ExchangeServer $TargetServerName).Domain.ToString()).ToLower()
         }
 
-        Get-ReceiveConnector -Identity ('{0}\{1}' -f ($TargetServerName), $sourceRC.Name) | Set-ReceiveConnector `
+        Get-ReceiveConnector -Identity ('{0}\{1}' -f ($TargetServerName), $TargetConnectorName) | Set-ReceiveConnector `
+        -Bindings $sourceRC.Bindings
         -RemoteIPRanges $sourceRC.RemoteIPRanges `
         -Banner $sourceRC.Banner `
         -ChunkingEnabled $sourceRC.ChunkingEnabled `
@@ -342,7 +347,7 @@ function Copy-ToServer {
 
           # set access rights on target connector
           $sourcePermissions | ForEach-Object {
-            $null = Get-ReceiveConnector -Identity ('{0}\{1}' -f $TargetServerName, $sourceRC.Name) -DomainController $DomainController | Add-ADPermission -DomainController $DomainController -User $_.User -Deny:$_.Deny -AccessRights $_.AccessRights -ExtendedRights $_.ExtendedRights
+            $null = Get-ReceiveConnector -Identity ('{0}\{1}' -f $TargetServerName, $TargetConnectorName) -DomainController $DomainController | Add-ADPermission -DomainController $DomainController -User $_.User -Deny:$_.Deny -AccessRights $_.AccessRights -ExtendedRights $_.ExtendedRights
           }
         }
       }
