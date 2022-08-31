@@ -92,15 +92,15 @@ Written by: Thomas Stensitzki
 
 ## Stay connected
 
-- My Blog: [http://justcantgetenough.granikos.eu](http://justcantgetenough.granikos.eu)
+- Blog: [http://blog.granikos.eu](http://blog.granikos.eu)
 - Twitter: [https://twitter.com/stensitzki](https://twitter.com/stensitzki)
 - LinkedIn: [http://de.linkedin.com/in/thomasstensitzki](http://de.linkedin.com/in/thomasstensitzki)
 - Github: [https://github.com/Apoc70](https://github.com/Apoc70)
 - MVP Blog: [https://blogs.msmvps.com/thomastechtalk/](https://blogs.msmvps.com/thomastechtalk/)
 - Tech Talk YouTube Channel (DE): [http://techtalk.granikos.eu](http://techtalk.granikos.eu)
+- Tech & Community Podcast (DE): [http://podcast.granikos.eu](http://podcast.granikos.eu)
 
-For more Office 365, Cloud Security, and Exchange Server stuff checkout services provided by Granikos
+For more Microsoft 365, Cloud Security, and Exchange Server stuff checkout the services provided by Granikos
 
-- Blog: [http://blog.granikos.eu](http://blog.granikos.eu)
-- Website: [https://www.granikos.eu/en/](https://www.granikos.eu/en/)
+- Website: [https://granikos.eu](https://granikos.eu)
 - Twitter: [https://twitter.com/granikos_de](https://twitter.com/granikos_de)
