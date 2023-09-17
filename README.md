@@ -2,6 +2,10 @@
 
 Copy a selected receive connector and it's configuration and permissions to other Exchange Servers
 
+## NOTE
+
+This repository is archived. The script is maintained [here](https://github.com/Apoc70/PowerShell-Scripts).
+
 ## Description
 
 This script copies a receive connector from a source Exchange Server to a single target Exchange server or to all Exchange servers.
